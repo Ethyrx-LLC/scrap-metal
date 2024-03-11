@@ -11,11 +11,12 @@ function log(value) {
     console.log(value);
 }
 
+const jobs = [];
+
 const fetchData = async () => {
     try {
         let res = await axios.get(jobsPage);
         let $ = await cheerio.load(res.data);
-        const text = $("li onclick").text().trim();
         const ids = $("li[onclick]")
             .map((i, elem) => {
                 const onclickValue = $(elem).attr("onclick");
@@ -23,6 +24,8 @@ const fetchData = async () => {
                 return match ? match[1] : null;
             })
             .get();
+
+        jobs.push(ids);
     } catch (e) {
         log(e);
     }
