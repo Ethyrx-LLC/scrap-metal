@@ -37,7 +37,7 @@ const fetchJobIds = async () => {
         log(jobs);
         fetchJobDetails();
     } catch (e) {
-        log("Error in fetchJobIds:", e);
+        log("Error in fetchJobIds: Please restart the application", e);
     }
 };
 
