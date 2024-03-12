@@ -18,7 +18,9 @@ app.use(
 );
 
 const post_id = "55122706";
-const url = `https://api.scraperapi.com/?api_key=0c3668c271e0cedf9b2a18de9114b0dc&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${post_id}.html&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
+const url = `https://api.scraperapi.com/?api_key=0c3668c271e0cedf9b2a18de911
+4b0dc&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${post_id}.html&follow_redirect=f
+alse&device_type=desktop&country_code=eu&render=true`;
 
 const fetchData = async (req, res) => {
   try {
