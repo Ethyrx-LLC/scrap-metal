@@ -3,7 +3,7 @@ const app = express();
 const port = 3001;
 const axios = require("axios");
 const cheerio = require("cheerio");
-const jobsPage = `https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https://www.expatriates.com/classifieds/bahrain/jobs&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
+const jobsPage = `https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https://www.expatriates.com/classifieds/bahrain/jobs&follow_redirect=false&device_type=desktop&country_code=eu`;
 
 function log(value) {
     console.log(value);
