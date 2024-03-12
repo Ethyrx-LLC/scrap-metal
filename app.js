@@ -1,9 +1,17 @@
 const express = require("express");
 const app = express();
 const port = 3001;
+const mongoose = require("mongoose");
+const Listing = require("./listing");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const jobsPage = `https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https://www.expatriates.com/classifieds/bahrain/jobs&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
+
+main().catch((err) => console.log(err));
+
+async function main() {
+    await mongoose.connect(`mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/`);
+}
 
 function log(value) {
     console.log(value);
@@ -75,6 +83,30 @@ const fetchJobDetails = async () => {
                 phone: postPhone.text().trim(),
                 text: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
             });
+            const loc = {
+                country: "BH",
+                country_full: "Bahrain",
+                region: "",
+                region_full: null,
+                city: "",
+                timezone: "Asia/Bahrain",
+            };
+            async function listingCreate() {
+                const listing = new Listing({
+                    title: postTitle.text().trim(),
+                    content: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
+                    category: "65e63eb09c7c7b61b1db90ba",
+                    location: loc,
+                    user: `65e9d2bd59706ced5903ae44`, // Include the user field
+                    likes: 0, // Initial value for likes
+                    views: 0, // Initial value for views
+                    createdAt: date,
+                });
+
+                await listing.save();
+                console.log(`Added listing: ${postTitle.text().trim()}`);
+            }
+            listingCreate();
         }
     } catch (e) {
         console.log(e);
