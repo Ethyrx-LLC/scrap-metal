@@ -5,7 +5,9 @@ const mongoose = require("mongoose");
 const Listing = require("./listing");
 const axios = require("axios");
 const cheerio = require("cheerio");
-const jobsPage = `https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=https://www.expatriates.com/classifieds/bahrain/jobs&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
+// CHANGE THIS PAGE ONCE THE OPERATION COMPLETES
+const page = "https://www.expatriates.com/classifieds/jobs/index100.html";
+const jobsPage = `https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=${page}&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
 
 main().catch((err) => console.log(err));
 
@@ -64,25 +66,41 @@ const fetchJobDetails = async () => {
             const postPhone = $("a[href^='tel:']").each((i, e) => {
                 $(e).text().trim();
             });
-            const postBody = $(".post-body")
-                .html()
-                .split("<br>")
-                .map((line) => line.trim())
-                .filter(Boolean)
-                .filter((line) => !line.includes('<div class="posting-images top-margin">'))
-                .map((line) => ({
-                    type: "paragraph",
-                    content: [{ type: "text", text: line }],
-                }));
+            const body_div = $(".post-body");
+            const paragraphs = [];
 
-            log("================== JOB DETAILS ====================");
-            console.dir({
-                title: postTitle.text().trim(),
-                date: date,
-                email: postEmail.text().trim(),
-                phone: postPhone.text().trim(),
-                text: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
+            body_div.contents().each(function () {
+                if (this.type === "text") {
+                    const text = $(this).text().trim();
+                    if (text) {
+                        paragraphs.push({
+                            type: "paragraph",
+                            content: [{ type: "text", text: text }],
+                        });
+                    }
+                } else if (this.tagName === "br") {
+                    paragraphs.push({
+                        type: "paragraph",
+                        content: [{ type: "text", text: "" }],
+                    });
+                }
             });
+
+            // Filter out empty paragraphs
+            const nonEmptyParagraphs = paragraphs.filter(
+                (paragraph) => paragraph.content[0].text !== ""
+            );
+
+            const prosemirror_content = {
+                type: "doc",
+                content: nonEmptyParagraphs.map((paragraph) => ({
+                    type: "paragraph",
+                    content: paragraph.content,
+                })),
+            };
+
+            console.log(paragraphs);
+
             const loc = {
                 country: "BH",
                 country_full: "Bahrain",
@@ -92,15 +110,14 @@ const fetchJobDetails = async () => {
                 timezone: "Asia/Bahrain",
             };
 
-            const prosemirror_content = {
-                type: "doc",
-                content: [
-                    {
-                        type: "text",
-                        text: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
-                    },
-                ],
-            };
+            log("================== JOB DETAILS ====================");
+            console.dir({
+                title: postTitle.text().trim(),
+                date: date,
+                email: postEmail.text().trim(),
+                phone: postPhone.text().trim(),
+                text: JSON.stringify(prosemirror_content),
+            });
 
             async function listingCreate() {
                 const listing = new Listing({
@@ -121,9 +138,11 @@ const fetchJobDetails = async () => {
         }
     } catch (e) {
         console.log(e);
+    } finally {
+        log("=============== OPERATION COMPLETE ==============");
     }
 };
 
 app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`);
+    console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
