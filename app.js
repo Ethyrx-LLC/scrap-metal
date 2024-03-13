@@ -58,7 +58,6 @@ const fetchJobDetails = async () => {
             const timestamp = $("span#timestamp").attr("epoch");
 
             const date = new Date(timestamp * 1000).toLocaleString();
-            console.log(date);
 
             const postEmail = $("a[href^='mailto:']").each((i, e) => {
                 $(e).text().trim();
@@ -98,8 +97,6 @@ const fetchJobDetails = async () => {
                     content: paragraph.content,
                 })),
             };
-
-            console.log(paragraphs);
 
             const loc = {
                 country: "BH",
