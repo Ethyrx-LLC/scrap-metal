@@ -1,11 +1,11 @@
 const express = require("express");
 const app = express();
-const port = 3001;
+const port = 3005;
 const mongoose = require("mongoose");
 const Listing = require("./listing");
 const axios = require("axios");
 const cheerio = require("cheerio");
-const jobsPage = `https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https://www.expatriates.com/classifieds/bahrain/jobs&follow_redirect=false&device_type=desktop&country_code=eu`;
+const jobsPage = `https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=https://www.expatriates.com/classifieds/bahrain/jobs&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
 
 main().catch((err) => console.log(err));
 
@@ -47,7 +47,7 @@ const fetchJobDetails = async () => {
     try {
         for (let jobID of jobs) {
             let res =
-                await axios.get(`https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${jobID}.html&follow_redirect=f
+                await axios.get(`https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${jobID}.html&follow_redirect=f
             alse&device_type=desktop&country_code=eu&render=true`);
             let $ = await cheerio.load(res.data);
             const postTitle = $(".page-title > h1").each((i, e) => {
@@ -94,7 +94,12 @@ const fetchJobDetails = async () => {
 
             const prosemirror_content = {
                 type: "doc",
-                content: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
+                content: [
+                    {
+                        type: "text",
+                        text: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
+                    },
+                ],
             };
 
             async function listingCreate() {
