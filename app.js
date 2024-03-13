@@ -6,7 +6,7 @@ const Listing = require("./listing");
 const axios = require("axios");
 const cheerio = require("cheerio");
 // CHANGE THIS PAGE ONCE THE OPERATION COMPLETES
-const page = "https://www.expatriates.com/classifieds/jobs/index100.html";
+const page = "https://www.expatriates.com/classifieds/bahrain/jobs/index100.html";
 const jobsPage = `https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=${page}&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
 
 main().catch((err) => console.log(err));
