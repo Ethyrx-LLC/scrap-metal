@@ -91,10 +91,16 @@ const fetchJobDetails = async () => {
                 city: "",
                 timezone: "Asia/Bahrain",
             };
+
+            const prosemirror_content = {
+                type: "doc",
+                content: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
+            };
+
             async function listingCreate() {
                 const listing = new Listing({
                     title: postTitle.text().trim(),
-                    content: postBody.map((paragraph) => paragraph.content[0].text).join("\n"),
+                    content: JSON.stringify(prosemirror_content),
                     category: "65e63eb09c7c7b61b1db90ba",
                     location: loc,
                     user: `65e9d2bd59706ced5903ae44`, // Include the user field
