@@ -6,8 +6,10 @@ const Listing = require("./listing");
 const axios = require("axios");
 const cheerio = require("cheerio");
 // CHANGE THIS PAGE ONCE THE OPERATION COMPLETES
-const page = "https://www.expatriates.com/classifieds/bahrain/jobs/index100.html";
-const jobsPage = `https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=${page}&follow_redirect=false&device_type=desktop&country_code=eu&render=true`;
+const apiKey = "643fa083c1ef8803b212b0942a0869bc";
+const baseUrl = "https://api.scraperapi.com/";
+const pageUrl = encodeURIComponent("https://www.expatriates.com/classifieds/bahrain/jobs/");
+const apiUrl = `${baseUrl}?api_key=${apiKey}&url=${pageUrl}&render=true`;
 
 main().catch((err) => console.log(err));
 
@@ -18,14 +20,29 @@ async function main() {
 function log(value) {
     console.log(value);
 }
-
 let jobs = [];
+let listingsAdded = 0;
 
 const fetchJobIds = async () => {
+    listingsAdded = 0;
     jobs = [];
+
     try {
-        let res = await axios.get(jobsPage);
+        let res = await axios.get(apiUrl);
         let $ = await cheerio.load(res.data);
+
+        // Filter out premium posts
+        const premiumPosts = $("li[premium='True']")
+            .map((i, elem) => {
+                const onclickValue = $(elem).attr("onclick");
+                const match = onclickValue.match(/\/cls\/(\d+)\.html/);
+                return match ? match[1] : null;
+            })
+            .get();
+
+        log("============== PREMIUM JOBS IDS IN ARRAY =============");
+        log(premiumPosts);
+
         const ids = $("li[onclick]")
             .map((i, elem) => {
                 const onclickValue = $(elem).attr("onclick");
@@ -33,10 +50,15 @@ const fetchJobIds = async () => {
                 return match ? match[1] : null;
             })
             .get();
-        log("============== PUSHING JOBS TO ARRAY =============");
-        jobs.push(...ids.filter(Boolean));
-        log("============== JOBS IDS IN ARRAY =============");
+
+        // Filter out premium jobs from the main list
+        const filteredIds = ids.filter((id) => !premiumPosts.includes(id));
+
+        log("============== PUSHING NON-PREMIUM JOBS TO ARRAY =============");
+        jobs.push(...filteredIds.filter(Boolean));
+        log("============== NON-PREMIUM JOBS IDS IN ARRAY =============");
         log(jobs);
+
         fetchJobDetails();
     } catch (e) {
         log("Error in fetchJobIds: Please restart the application", e);
@@ -48,9 +70,9 @@ fetchJobIds();
 const fetchJobDetails = async () => {
     try {
         for (let jobID of jobs) {
-            let res =
-                await axios.get(`https://api.scraperapi.com/?api_key=b756586b6210af8a85b6f097f5feee7b&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${jobID}.html&follow_redirect=f
-            alse&device_type=desktop&country_code=eu&render=true`);
+            let res = await axios.get(
+                `https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${jobID}.html&follow_redirect=false&device_type=desktop&country_code=eu&render=true`
+            );
             let $ = await cheerio.load(res.data);
             const postTitle = $(".page-title > h1").each((i, e) => {
                 $(e).text().trim();
@@ -132,11 +154,13 @@ const fetchJobDetails = async () => {
                 console.log(`Added listing: ${postTitle.text().trim()}`);
             }
             listingCreate();
+            listingsAdded++;
         }
     } catch (e) {
         console.log(e);
     } finally {
         log("=============== OPERATION COMPLETE ==============");
+        log(`Added ${listingsAdded} listings`);
     }
 };
 
