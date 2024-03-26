@@ -3,167 +3,147 @@ const app = express();
 const port = 3005;
 const mongoose = require("mongoose");
 const Listing = require("./listing");
-const axios = require("axios");
-const cheerio = require("cheerio");
-// CHANGE THIS PAGE ONCE THE OPERATION COMPLETES
-const apiKey = "643fa083c1ef8803b212b0942a0869bc";
-const baseUrl = "https://api.scraperapi.com/";
-const pageUrl = encodeURIComponent("https://www.expatriates.com/classifieds/bahrain/jobs/");
-const apiUrl = `${baseUrl}?api_key=${apiKey}&url=${pageUrl}&render=true`;
+const { PlaywrightCrawler } = require("crawlee");
 
 main().catch((err) => console.log(err));
 
-async function main() {
-    await mongoose.connect(`mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/`);
+function logPremiumPosts(page) {
+	return page.$$eval("li[premium='True']", (elems) =>
+		elems.map((elem) => {
+			const onclickValue = elem.getAttribute("onclick");
+			const match = onclickValue.match(/\/cls\/(\d+)\.html/);
+			return match ? match[1] : null;
+		})
+	);
 }
 
-function log(value) {
-    console.log(value);
+async function logAllJobIds(page, premiumPosts) {
+	const ids = await page.$$eval("li[onclick]", (elems) =>
+		elems.map((elem) => {
+			const onclickValue = elem.getAttribute("onclick");
+			const match = onclickValue.match(/\/cls\/(\d+)\.html/);
+			return match ? match[1] : null;
+		})
+	);
+
+	return ids.filter((id) => !premiumPosts.includes(id) && id);
 }
+
+async function main() {
+	await mongoose.connect("mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/");
+	//fetchJobIds();
+}
+
 let jobs = [];
 let listingsAdded = 0;
 
-const fetchJobIds = async () => {
-    listingsAdded = 0;
-    jobs = [];
+const crawler = new PlaywrightCrawler({
+	async requestHandler({ page, request }) {
+		//console.log('Processing:', request.url);
+		const premiumPosts = await logPremiumPosts(page);
+		//console.log('============== PREMIUM JOBS IDS IN ARRAY =============');
+		//console.log(premiumPosts);
 
-    try {
-        let res = await axios.get(apiUrl);
-        let $ = await cheerio.load(res.data);
+		const jobIds = await logAllJobIds(page, premiumPosts);
 
-        // Filter out premium posts
-        const premiumPosts = $("li[premium='True']")
-            .map((i, elem) => {
-                const onclickValue = $(elem).attr("onclick");
-                const match = onclickValue.match(/\/cls\/(\d+)\.html/);
-                return match ? match[1] : null;
-            })
-            .get();
+		jobs.push(...jobIds);
+		//console.log('============== NON-PREMIUM JOBS IDS IN ARRAY =============');
+		//console.log(jobIds);
 
-        log("============== PREMIUM JOBS IDS IN ARRAY =============");
-        log(premiumPosts);
+		await fetchJobDetails(page, jobIds);
+	}
+});
 
-        const ids = $("li[onclick]")
-            .map((i, elem) => {
-                const onclickValue = $(elem).attr("onclick");
-                const match = onclickValue.match(/\/cls\/(\d+)\.html/);
-                return match ? match[1] : null;
-            })
-            .get();
+const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
+	const listing = new Listing({
+		title: postTitle,
+		content: JSON.stringify(prosemirror_content),
+		category: "65e63eb09c7c7b61b1db90ba",
+		location: loc,
+		user: `65e9d2bd59706ced5903ae44`, // Include the user field
+		likes: 0, // Initial value for likes
+		views: 0, // Initial value for views
+		createdAt: date
+	});
 
-        // Filter out premium jobs from the main list
-        const filteredIds = ids.filter((id) => !premiumPosts.includes(id));
-
-        log("============== PUSHING NON-PREMIUM JOBS TO ARRAY =============");
-        jobs.push(...filteredIds.filter(Boolean));
-        log("============== NON-PREMIUM JOBS IDS IN ARRAY =============");
-        log(jobs);
-
-        fetchJobDetails();
-    } catch (e) {
-        log("Error in fetchJobIds: Please restart the application", e);
-    }
+	await listing.save();
+	//console.log(`Added listing: ${postTitle}`);
 };
 
-fetchJobIds();
+const fetchJobDetails = async (page) => {
+	try {
+		console.log("Jobs array length:", jobs.length);
 
-const fetchJobDetails = async () => {
-    try {
-        for (let jobID of jobs) {
-            let res = await axios.get(
-                `https://api.scraperapi.com/?api_key=643fa083c1ef8803b212b0942a0869bc&url=https%3A%2F%2Fwww.expatriates.com%2Fcls%2F${jobID}.html&follow_redirect=false&device_type=desktop&country_code=eu&render=true`
-            );
-            let $ = await cheerio.load(res.data);
-            const postTitle = $(".page-title > h1").each((i, e) => {
-                $(e).text().trim();
-            });
-            const timestamp = $("span#timestamp").attr("epoch");
+		for (let jobID of jobs) {
+			console.log("Processing job ID:", jobID);
 
-            const date = new Date(timestamp * 1000).toLocaleString();
+			await page.goto(`https://www.expatriates.com/cls/${jobID}.html`);
+			const postTitle = await page.$eval(".page-title > h1", (elem) => elem.textContent.trim());
+			const timestamp = await page.$eval("span#timestamp", (elem) => elem.getAttribute("epoch"));
+			const date = new Date(timestamp * 1000).toLocaleString();
 
-            const postEmail = $("a[href^='mailto:']").each((i, e) => {
-                $(e).text().trim();
-            });
-            const postPhone = $("a[href^='tel:']").each((i, e) => {
-                $(e).text().trim();
-            });
-            const body_div = $(".post-body");
-            const paragraphs = [];
+			let postEmail, postPhone;
+			try {
+				postEmail = await page.$eval("a[href^='mailto:']", (elem) => elem.textContent.trim());
+			} catch (error) {
+				console.error("Error finding email:", error);
+				postEmail = "";
+			}
 
-            body_div.contents().each(function () {
-                if (this.type === "text") {
-                    const text = $(this).text().trim();
-                    if (text) {
-                        paragraphs.push({
-                            type: "paragraph",
-                            content: [{ type: "text", text: text }],
-                        });
-                    }
-                } else if (this.tagName === "br") {
-                    paragraphs.push({
-                        type: "paragraph",
-                        content: [{ type: "text", text: "" }],
-                    });
-                }
-            });
+			try {
+				postPhone = await page.$eval("a[href^='tel:']", (elem) => elem.textContent.trim());
+			} catch (error) {
+				console.error("Error finding phone:", error);
+				postPhone = "";
+			}
 
-            // Filter out empty paragraphs
-            const nonEmptyParagraphs = paragraphs.filter(
-                (paragraph) => paragraph.content[0].text !== ""
-            );
+			const paragraphs = await page.$$eval(".post-body", (elems) =>
+				elems.flatMap((elem) => {
+					const contents = elem.innerText.trim().split("\n");
+					return contents.filter((content) => content.trim() !== "");
+				})
+			);
 
-            const prosemirror_content = {
-                type: "doc",
-                content: nonEmptyParagraphs.map((paragraph) => ({
-                    type: "paragraph",
-                    content: paragraph.content,
-                })),
-            };
+			const nonEmptyParagraphs = paragraphs.filter((paragraph) => paragraph.trim() !== "");
 
-            const loc = {
-                country: "BH",
-                country_full: "Bahrain",
-                region: "",
-                region_full: null,
-                city: "",
-                timezone: "Asia/Bahrain",
-            };
+			const prosemirror_content = {
+				type: "doc",
+				content: nonEmptyParagraphs.map((paragraph) => ({
+					type: "paragraph",
+					content: [{ type: "text", text: paragraph }]
+				}))
+			};
 
-            log("================== JOB DETAILS ====================");
-            console.dir({
-                title: postTitle.text().trim(),
-                date: date,
-                email: postEmail.text().trim(),
-                phone: postPhone.text().trim(),
-                text: JSON.stringify(prosemirror_content),
-            });
+			const loc = {
+				country: "BH",
+				country_full: "Bahrain",
+				region: "",
+				region_full: null,
+				city: "",
+				timezone: "Asia/Bahrain"
+			};
 
-            async function listingCreate() {
-                const listing = new Listing({
-                    title: postTitle.text().trim(),
-                    content: JSON.stringify(prosemirror_content),
-                    category: "65e63eb09c7c7b61b1db90ba",
-                    location: loc,
-                    user: `65e9d2bd59706ced5903ae44`, // Include the user field
-                    likes: 0, // Initial value for likes
-                    views: 0, // Initial value for views
-                    createdAt: date,
-                });
+			console.dir({
+				title: postTitle,
+				date: date,
+				email: postEmail,
+				phone: postPhone,
+				text: JSON.stringify(prosemirror_content)
+			});
 
-                await listing.save();
-                console.log(`Added listing: ${postTitle.text().trim()}`);
-            }
-            listingCreate();
-            listingsAdded++;
-        }
-    } catch (e) {
-        console.log(e);
-    } finally {
-        log("=============== OPERATION COMPLETE ==============");
-        log(`Added ${listingsAdded} listings`);
-    }
+			await listingCreate(postTitle, prosemirror_content, loc, date);
+			listingsAdded++;
+		}
+	} catch (e) {
+		console.error("Error in fetchJobDetails:", e);
+	} finally {
+		log("=============== OPERATION COMPLETE ==============");
+		log(`Added ${listingsAdded} listings`);
+	}
 };
 
 app.listen(port, () => {
-    console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
+	console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
+
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/"]);
