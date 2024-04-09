@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const faker = require("faker");
+const { faker } = require("@faker-js/faker");
 
 const app = express();
 const port = 3000;
