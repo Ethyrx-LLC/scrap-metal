@@ -8,15 +8,32 @@ const { PlaywrightCrawler } = require("crawlee");
 
 main().catch((err) => console.log(err));
 
-function logPremiumPosts(page) {
-    return page.$$eval("li[premium='True']", (elems) =>
+async function main() {
+    await mongoose.connect("mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/");
+}
+
+let jobs = [];
+let listingsAdded = 0;
+
+const crawler = new PlaywrightCrawler({
+    async requestHandler({ page, request }) {
+        const premiumPosts = await logPremiumPosts(page);
+        const jobIds = await logAllJobIds(page, premiumPosts);
+        jobs.push(...jobIds);
+        await fetchJobDetails(page, jobIds);
+    },
+});
+
+const logPremiumPosts = async (page) => {
+    const premiumPosts = await page.$$eval("li[premium='True']", (elems) =>
         elems.map((elem) => {
             const onclickValue = elem.getAttribute("onclick");
             const match = onclickValue.match(/\/cls\/(\d+)\.html/);
             return match ? match[1] : null;
         })
     );
-}
+    return premiumPosts;
+};
 
 async function logAllJobIds(page, premiumPosts) {
     const ids = await page.$$eval("li[onclick]", (elems) =>
@@ -26,36 +43,10 @@ async function logAllJobIds(page, premiumPosts) {
             return match ? match[1] : null;
         })
     );
-
     return ids.filter((id) => !premiumPosts.includes(id) && id);
 }
 
-async function main() {
-    await mongoose.connect("mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/");
-    //fetchJobIds();
-}
-
-let jobs = [];
-let listingsAdded = 0;
-
-const crawler = new PlaywrightCrawler({
-    async requestHandler({ page, request }) {
-        //console.log('Processing:', request.url);
-        const premiumPosts = await logPremiumPosts(page);
-        //console.log('============== PREMIUM JOBS IDS IN ARRAY =============');
-        //console.log(premiumPosts);
-
-        const jobIds = await logAllJobIds(page, premiumPosts);
-
-        jobs.push(...jobIds);
-        //console.log('============== NON-PREMIUM JOBS IDS IN ARRAY =============');
-        //console.log(jobIds);
-
-        await fetchJobDetails(page, jobIds);
-    },
-});
-
-const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
+const listingCreate = async (postTitle, prosemirror_content, loc, date, postEmail, postPhone) => {
     const Jobcategory = await Category.findById("65e63eb09c7c7b61b1db90ba");
     const listing = new Listing({
         title: postTitle,
@@ -67,10 +58,33 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
         views: 0, // Initial value for views
         createdAt: date,
     });
+
+    // Include email and phone number in the listing's content if available
+    const listingContent = JSON.parse(listing.content);
+    if (postEmail) {
+        listingContent.content.push({
+            type: "paragraph",
+            content: [{ type: "text", text: `Email: ${postEmail}` }],
+        });
+    }
+    if (postPhone) {
+        listingContent.content.push({
+            type: "paragraph",
+            content: [{ type: "text", text: `Phone: ${postPhone}` }],
+        });
+    }
+    // Add a line break between email/phone and the rest of the content
+    listingContent.content.push({
+        type: "paragraph",
+        content: [{ type: "text", text: "\n\n" }],
+    });
+
+    listing.content = JSON.stringify(listingContent);
+
     await listing.save();
     Jobcategory.listings.push(listing);
     await Jobcategory.save();
-    //console.log(`Added listing: ${postTitle}`);
+    console.log(`Added listing: ${postTitle}`);
 };
 
 const fetchJobDetails = async (page) => {
@@ -140,14 +154,14 @@ const fetchJobDetails = async (page) => {
                 text: JSON.stringify(prosemirror_content),
             });
 
-            await listingCreate(postTitle, prosemirror_content, loc, date);
+            await listingCreate(postTitle, prosemirror_content, loc, date, postEmail, postPhone);
             listingsAdded++;
         }
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
-        log("=============== OPERATION COMPLETE ==============");
-        log(`Added ${listingsAdded} listings`);
+        console.log("=============== OPERATION COMPLETE ==============");
+        console.log(`Added ${listingsAdded} listings`);
     }
 };
 
@@ -155,4 +169,4 @@ app.listen(port, () => {
     console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
 
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/index100.html"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
