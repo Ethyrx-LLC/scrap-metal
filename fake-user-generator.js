@@ -6,38 +6,57 @@ const { faker } = require("@faker-js/faker");
 const app = express();
 const port = 3000;
 
-// Middleware to parse JSON bodies
 app.use(bodyParser.json());
 
-// Define a route for creating users
-app.post("/users/create", async (req, res) => {
+async function createUser() {
     try {
-        // Generate fake user data
+        console.log("Generating fake user data...");
+
         const username = faker.internet.userName();
         const email = faker.internet.email();
         const password = faker.internet.password();
-        const confirmPassword = password; // For simplicity, setting confirmPassword same as password
 
-        // Construct the user object
+        // Set confirmPassword to the same value as password
+        const confirmPassword = password;
+
         const user = {
             username: username,
             email: email,
             password: password,
-            confirmPassword: confirmPassword,
+            confirm_password: confirmPassword, // Update the key to match backend's expectations
         };
 
-        // Send a POST request to the backend URL with the generated user data
+        console.log("Generated user data:", user);
+
+        console.log("Sending request to backend...");
+
         const response = await axios.post("https://backend.kameelist.com/users/create", user);
 
-        // Return the response from the backend
-        res.json(response.data);
+        console.log("Received response from backend:", response.data);
+
+        // Check if errors property exists in the response
+        if (response.data.errors !== undefined) {
+            console.error("Failed to create user:", response.data.errors);
+            return response.data.errors;
+        } else {
+            console.log("User created successfully");
+            return response.data;
+        }
     } catch (error) {
         console.error("Error:", error.response.data);
-        res.status(error.response.status).json({ error: error.response.data });
+        throw error;
     }
-});
+}
 
-// Start the server
+// Example usage:
+createUser()
+    .then((response) => {
+        // Handle the response here
+        console.log("Response:", response);
+    })
+    .catch((error) => {
+        console.error("Failed to create user:", error);
+    });
 app.listen(port, () => {
     console.log(`User generator server is running at http://localhost:${port}`);
 });
