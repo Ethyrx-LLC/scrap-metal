@@ -1,9 +1,9 @@
 {
-    "id": "wjmFDA7KYfVMskk",
-    "json": "{\"id\":\"wjmFDA7KYfVMskk\",\"url\":\"https://www.expatriates.com/classifieds/bahrain/jobs\",\"uniqueKey\":\"https://www.expatriates.com/classifieds/bahrain/jobs\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{}}",
-    "method": "GET",
-    "orderNo": 1712690420398,
-    "retryCount": 0,
-    "uniqueKey": "https://www.expatriates.com/classifieds/bahrain/jobs",
-    "url": "https://www.expatriates.com/classifieds/bahrain/jobs"
+	"id": "wjmFDA7KYfVMskk",
+	"json": "{\"id\":\"wjmFDA7KYfVMskk\",\"url\":\"https://www.expatriates.com/classifieds/bahrain/jobs\",\"loadedUrl\":\"https://www.expatriates.com/classifieds/bahrain/jobs/\",\"uniqueKey\":\"https://www.expatriates.com/classifieds/bahrain/jobs\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"ReferenceError: log is not defined\\n    at fetchJobDetails (/home/fadely/Desktop/projects/scrap-metal/app.js:149:9)\\n    at async PlaywrightCrawler.requestHandler [as userProvidedRequestHandler] (/home/fadely/Desktop/projects/scrap-metal/app.js:54:9)\\n    at async wrap (/home/fadely/Desktop/projects/scrap-metal/node_modules/@apify/timeout/cjs/index.cjs:54:21)\"],\"headers\":{},\"userData\":{\"__crawlee\":{\"state\":5}}}",
+	"method": "GET",
+	"orderNo": 1712691258376,
+	"retryCount": 1,
+	"uniqueKey": "https://www.expatriates.com/classifieds/bahrain/jobs",
+	"url": "https://www.expatriates.com/classifieds/bahrain/jobs"
 }
