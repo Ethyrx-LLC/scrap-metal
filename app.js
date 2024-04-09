@@ -4,10 +4,13 @@ const port = 3005;
 const mongoose = require("mongoose");
 const Listing = require("./listing");
 const Category = require("./category");
+const User = require("./user");
 const { PlaywrightCrawler } = require("crawlee");
 
 main().catch((err) => console.log(err));
-
+function log(value) {
+    console.log(value);
+}
 function logPremiumPosts(page) {
     return page.$$eval("li[premium='True']", (elems) =>
         elems.map((elem) => {
@@ -56,13 +59,23 @@ const crawler = new PlaywrightCrawler({
 });
 
 const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
+    const users = await User.find({
+        createdAt: {
+            $gte: new Date("2024-04-09T00:00:00Z"),
+            $lt: new Date("2024-04-10T00:00:00Z"),
+        },
+    });
+
+    const randomIndex = Math.floor(Math.random() * users.length);
+    const randomUser = users[randomIndex];
+
     const Jobcategory = await Category.findById("65e63eb09c7c7b61b1db90ba");
     const listing = new Listing({
         title: postTitle,
         content: JSON.stringify(prosemirror_content),
         category: Jobcategory,
         location: loc,
-        user: `65e9d2bd59706ced5903ae44`, // Include the user field
+        user: randomUser._id, // Include the user field
         likes: 0, // Initial value for likes
         views: 0, // Initial value for views
         createdAt: date,
@@ -75,10 +88,10 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
 
 const fetchJobDetails = async (page) => {
     try {
-        console.log("Jobs array length:", jobs.length);
+        log("Jobs array length:", jobs.length);
 
         for (let jobID of jobs) {
-            console.log("Processing job ID:", jobID);
+            log("Processing job ID:", jobID);
 
             await page.goto(`https://www.expatriates.com/cls/${jobID}.html`);
             const postTitle = await page.$eval(".page-title > h1", (elem) =>
