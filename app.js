@@ -6,7 +6,6 @@ const Listing = require("./listing");
 const Category = require("./category");
 const User = require("./user");
 const { PlaywrightCrawler } = require("crawlee");
-const fs = require("fs");
 
 const processedIdSchema = new mongoose.Schema({
     jobId: {
@@ -51,10 +50,6 @@ async function main() {
 
 let jobs = [];
 let listingsAdded = 0;
-let newPhoneCount = 0;
-let newEmailCount = 0;
-let startingPhone = null;
-let startingEmail = null;
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ page, request }) {
@@ -93,32 +88,6 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
     log(`Posted \x1b[38;5;155m${listing.title}\x1b[0m successfully!`);
 };
 
-const appendDataToFile = (filePath, data) => {
-    return new Promise((resolve, reject) => {
-        fs.readFile(filePath, "utf8", (err, fileData) => {
-            if (err) {
-                if (err.code === "ENOENT") {
-                    fs.writeFile(filePath, data + "\n", "utf8", (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                } else {
-                    reject(err);
-                }
-            } else {
-                if (!fileData.includes(data)) {
-                    fs.appendFile(filePath, data + "\n", "utf8", (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                } else {
-                    resolve();
-                }
-            }
-        });
-    });
-};
-
 const checkAndInsertJobId = async (jobId) => {
     const existingId = await ProcessedId.findOne({ jobId });
     if (!existingId) {
@@ -132,6 +101,7 @@ const fetchJobDetails = async (page) => {
     try {
         for (let jobID of jobs) {
             const shouldPost = await checkAndInsertJobId(jobID);
+
             if (!shouldPost) {
                 log(`Skipping job ID: ${jobID} as it has already been processed.`);
                 listingsAdded--;
@@ -205,12 +175,10 @@ const fetchJobDetails = async (page) => {
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
+        //log("=============== OPERATION COMPLETE ==============");
         log(
             `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
         );
-        log(`New phone numbers added: ${newPhoneCount}`);
-        log(`New phone numbers added: ${newPhoneCount} starting with: ${startingPhone}`);
-        log(`New email addresses added: ${newEmailCount} starting with: ${startingEmail}`);
     }
 };
 
