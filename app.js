@@ -7,21 +7,10 @@ const Category = require("./category");
 const User = require("./user");
 const { PlaywrightCrawler } = require("crawlee");
 
-const processedIdSchema = new mongoose.Schema({
-    jobId: {
-        type: String,
-        required: true,
-        unique: true,
-    },
-});
-const ProcessedId = mongoose.model("ProcessedId", processedIdSchema, "_processedIds");
-
 main().catch((err) => console.log(err));
-
 function log(value) {
     console.log(value);
 }
-
 function logPremiumPosts(page) {
     return page.$$eval("li[premium='True']", (elems) =>
         elems.map((elem) => {
@@ -53,9 +42,17 @@ let listingsAdded = 0;
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ page, request }) {
+        //console.log('Processing:', request.url);
         const premiumPosts = await logPremiumPosts(page);
+        //console.log('============== PREMIUM JOBS IDS IN ARRAY =============');
+        //console.log(premiumPosts);
+
         const jobIds = await logAllJobIds(page, premiumPosts);
+
         jobs.push(...jobIds);
+        //console.log('============== NON-PREMIUM JOBS IDS IN ARRAY =============');
+        //console.log(jobIds);
+
         await fetchJobDetails(page, jobIds);
     },
 });
@@ -77,28 +74,20 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
         content: JSON.stringify(prosemirror_content),
         category: Jobcategory,
         location: loc,
-        user: randomUser._id,
-        likes: 0,
-        views: 0,
+        user: randomUser._id, // Include the user field
+        likes: 0, // Initial value for likes
+        views: 0, // Initial value for views
         createdAt: date,
     });
     await listing.save();
     Jobcategory.listings.push(listing);
     await Jobcategory.save();
-    log(`Posted \x1b[38;5;155m${listing.title}\x1b[0m successfully!`);
-};
-
-const checkAndInsertJobId = async (jobId) => {
-    const existingId = await ProcessedId.findOne({ jobId });
-    if (!existingId) {
-        await new ProcessedId({ jobId }).save();
-        return true;
-    }
-    return false;
+    //console.log(`Added listing: ${postTitle}`);
 };
 
 const fetchJobDetails = async (page) => {
     try {
+<<<<<<< HEAD
         for (let jobID of jobs) {
             const shouldPost = await checkAndInsertJobId(jobID);
 
@@ -107,12 +96,21 @@ const fetchJobDetails = async (page) => {
                 listingsAdded--;
                 continue;
             }
+=======
+        log("Jobs array length:", jobs.length);
+
+        for (let jobID of jobs) {
+            log("Processing job ID:", jobID);
+>>>>>>> parent of 9fa305e (Fix errors, save posted job ids in database)
 
             await page.goto(`https://www.expatriates.com/cls/${jobID}.html`);
             const postTitle = await page.$eval(".page-title > h1", (elem) =>
                 elem.textContent.trim()
             );
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of 9fa305e (Fix errors, save posted job ids in database)
             const timestamp = await page.$eval("span#timestamp", (elem) =>
                 elem.getAttribute("epoch")
             );
@@ -129,6 +127,10 @@ const fetchJobDetails = async (page) => {
                     newEmailCount++;
                 }
             } catch (error) {
+<<<<<<< HEAD
+=======
+                console.error("Error finding email:", error);
+>>>>>>> parent of 9fa305e (Fix errors, save posted job ids in database)
                 postEmail = "";
             }
 
@@ -140,6 +142,10 @@ const fetchJobDetails = async (page) => {
                     newPhoneCount++;
                 }
             } catch (error) {
+<<<<<<< HEAD
+=======
+                console.error("Error finding phone:", error);
+>>>>>>> parent of 9fa305e (Fix errors, save posted job ids in database)
                 postPhone = "";
             }
 
@@ -169,16 +175,32 @@ const fetchJobDetails = async (page) => {
                 timezone: "Asia/Bahrain",
             };
 
+<<<<<<< HEAD
+=======
+            console.dir({
+                title: postTitle,
+                date: date,
+                email: postEmail,
+                phone: postPhone,
+                text: JSON.stringify(prosemirror_content),
+            });
+
+>>>>>>> parent of 9fa305e (Fix errors, save posted job ids in database)
             await listingCreate(postTitle, prosemirror_content, loc, date);
             listingsAdded++;
         }
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
+<<<<<<< HEAD
         //log("=============== OPERATION COMPLETE ==============");
         log(
             `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
         );
+=======
+        log("=============== OPERATION COMPLETE ==============");
+        log(`Added ${listingsAdded} listings`);
+>>>>>>> parent of 9fa305e (Fix errors, save posted job ids in database)
     }
 };
 
