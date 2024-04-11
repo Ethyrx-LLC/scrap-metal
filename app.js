@@ -218,4 +218,4 @@ app.listen(port, () => {
     console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
 
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/index300.html"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
