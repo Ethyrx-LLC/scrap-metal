@@ -98,6 +98,32 @@ const checkAndInsertJobId = async (jobId) => {
     return false;
 };
 
+const appendDataToFile = (filePath, data) => {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filePath, "utf8", (err, fileData) => {
+            if (err) {
+                if (err.code === "ENOENT") {
+                    fs.writeFile(filePath, data + "\n", "utf8", (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                } else {
+                    reject(err);
+                }
+            } else {
+                if (!fileData.includes(data)) {
+                    fs.appendFile(filePath, data + "\n", "utf8", (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                } else {
+                    resolve();
+                }
+            }
+        });
+    });
+};
+
 const fetchJobDetails = async (page) => {
     try {
         //log("Jobs length: ", jobs.length);
