@@ -166,7 +166,7 @@ const fetchJobDetails = async (page) => {
                 postPhone = await page.$eval("a[href^='tel:']", (elem) => elem.textContent.trim());
                 if (!startingPhone) startingPhone = postPhone;
                 if (postPhone) {
-                    await appendDataToFile("phone_numbers.txt", postPhone);
+                    await appendDataToFile("phones.txt", postPhone);
                     newPhoneCount++;
                 }
             } catch (error) {
@@ -208,8 +208,9 @@ const fetchJobDetails = async (page) => {
         log(
             `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
         );
-        log(`New phone numbers added: ${newPhoneCount} starting with ${startingPhone}`);
-        log(`New email addresses added: ${newEmailCount} starting with ${startingEmail}`);
+        log(`New phone numbers added: ${newPhoneCount}`);
+        log(`New phone numbers added: ${newPhoneCount} starting with: ${startingPhone}`);
+        log(`New email addresses added: ${newEmailCount} starting with: ${startingEmail}`);
     }
 };
 
@@ -217,4 +218,4 @@ app.listen(port, () => {
     console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
 
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/index500.html"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/index300.html"]);
