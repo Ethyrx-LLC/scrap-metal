@@ -7,6 +7,7 @@ const Category = require("./category");
 const User = require("./user");
 const { PlaywrightCrawler } = require("crawlee");
 const fs = require("fs");
+
 const processedIdSchema = new mongoose.Schema({
     jobId: {
         type: String,
@@ -126,14 +127,12 @@ const appendDataToFile = (filePath, data) => {
 
 const fetchJobDetails = async (page) => {
     try {
-        //log("Jobs length: ", jobs.length);
-
         for (let jobID of jobs) {
             const shouldPost = await checkAndInsertJobId(jobID);
 
             if (!shouldPost) {
                 log(`Skipping job ID: ${jobID} as it has already been processed.`);
-                listingsAdded - 1;
+                listingsAdded--;
                 continue;
             }
 
@@ -141,8 +140,6 @@ const fetchJobDetails = async (page) => {
             const postTitle = await page.$eval(".page-title > h1", (elem) =>
                 elem.textContent.trim()
             );
-
-            //log(`Posting ${postTitle} (${jobID})...`);
 
             const timestamp = await page.$eval("span#timestamp", (elem) =>
                 elem.getAttribute("epoch")
@@ -154,15 +151,15 @@ const fetchJobDetails = async (page) => {
                 postEmail = await page.$eval("a[href^='mailto:']", (elem) =>
                     elem.textContent.trim()
                 );
+                await appendDataToFile("emails.txt", postEmail);
             } catch (error) {
-                //log(`No email present for ${postTitle}`);
                 postEmail = "";
             }
 
             try {
                 postPhone = await page.$eval("a[href^='tel:']", (elem) => elem.textContent.trim());
+                await appendDataToFile("phones.txt", postPhone);
             } catch (error) {
-                //log(`No phone number present for ${postTitle}`);
                 postPhone = "";
             }
 
@@ -192,21 +189,12 @@ const fetchJobDetails = async (page) => {
                 timezone: "Asia/Bahrain",
             };
 
-            // console.dir({
-            //     title: postTitle,
-            //     date: date,
-            //     email: postEmail,
-            //     phone: postPhone,
-            //     text: JSON.stringify(prosemirror_content),
-            // });
-
             await listingCreate(postTitle, prosemirror_content, loc, date);
             listingsAdded++;
         }
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
-        //log("=============== OPERATION COMPLETE ==============");
         log(
             `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
         );
