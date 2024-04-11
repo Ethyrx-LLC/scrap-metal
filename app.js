@@ -47,11 +47,14 @@ async function logAllJobIds(page, premiumPosts) {
 
 async function main() {
     await mongoose.connect("mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/");
-    //fetchJobIds();
 }
 
 let jobs = [];
 let listingsAdded = 0;
+let newPhoneCount = 0;
+let newEmailCount = 0;
+let startingPhone = null;
+let startingEmail = null;
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ page, request }) {
@@ -90,15 +93,6 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
     log(`Posted \x1b[38;5;155m${listing.title}\x1b[0m successfully!`);
 };
 
-const checkAndInsertJobId = async (jobId) => {
-    const existingId = await ProcessedId.findOne({ jobId });
-    if (!existingId) {
-        await new ProcessedId({ jobId }).save();
-        return true;
-    }
-    return false;
-};
-
 const appendDataToFile = (filePath, data) => {
     return new Promise((resolve, reject) => {
         fs.readFile(filePath, "utf8", (err, fileData) => {
@@ -125,11 +119,19 @@ const appendDataToFile = (filePath, data) => {
     });
 };
 
+const checkAndInsertJobId = async (jobId) => {
+    const existingId = await ProcessedId.findOne({ jobId });
+    if (!existingId) {
+        await new ProcessedId({ jobId }).save();
+        return true;
+    }
+    return false;
+};
+
 const fetchJobDetails = async (page) => {
     try {
         for (let jobID of jobs) {
             const shouldPost = await checkAndInsertJobId(jobID);
-
             if (!shouldPost) {
                 log(`Skipping job ID: ${jobID} as it has already been processed.`);
                 listingsAdded--;
@@ -151,14 +153,22 @@ const fetchJobDetails = async (page) => {
                 postEmail = await page.$eval("a[href^='mailto:']", (elem) =>
                     elem.textContent.trim()
                 );
-                await appendDataToFile("emails.txt", postEmail);
+                if (!startingEmail) startingEmail = postEmail;
+                if (postEmail) {
+                    await appendDataToFile("emails.txt", postEmail);
+                    newEmailCount++;
+                }
             } catch (error) {
                 postEmail = "";
             }
 
             try {
                 postPhone = await page.$eval("a[href^='tel:']", (elem) => elem.textContent.trim());
-                await appendDataToFile("phones.txt", postPhone);
+                if (!startingPhone) startingPhone = postPhone;
+                if (postPhone) {
+                    await appendDataToFile("phone_numbers.txt", postPhone);
+                    newPhoneCount++;
+                }
             } catch (error) {
                 postPhone = "";
             }
@@ -198,6 +208,8 @@ const fetchJobDetails = async (page) => {
         log(
             `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
         );
+        log(`New phone numbers added: ${newPhoneCount} starting with ${startingPhone}`);
+        log(`New email addresses added: ${newEmailCount} starting with ${startingEmail}`);
     }
 };
 
@@ -205,4 +217,4 @@ app.listen(port, () => {
     console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
 
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/index500.html"]);
