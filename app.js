@@ -104,7 +104,7 @@ const fetchJobDetails = async (page) => {
 
         for (let jobID of jobs) {
             const shouldPost = await checkAndInsertJobId(jobID);
-            
+
             if (!shouldPost) {
                 log(`Skipping job ID: ${jobID} as it has already been processed.`);
                 listingsAdded - 1;
@@ -181,7 +181,9 @@ const fetchJobDetails = async (page) => {
         console.error("Error in fetchJobDetails:", e);
     } finally {
         //log("=============== OPERATION COMPLETE ==============");
-        log(`Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`);
+        log(
+            `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
+        );
     }
 };
 
@@ -189,4 +191,4 @@ app.listen(port, () => {
     console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
 
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs/index300.html"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
