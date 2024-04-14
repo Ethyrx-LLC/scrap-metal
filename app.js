@@ -50,7 +50,8 @@ async function main() {
 }
 
 let jobs = [];
-let listingsAdded = 0;
+
+let { added = 0 , skipped = 0 } = {};
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ page, request }) {
@@ -106,8 +107,8 @@ const fetchJobDetails = async (page) => {
             const shouldPost = await checkAndInsertJobId(jobID);
 
             if (!shouldPost) {
-                log(`Skipping job ID: ${jobID} as it has already been processed.`);
-                listingsAdded - 1;
+                // log(`Skipping job ID: ${jobID} as it has already been processed.`);
+                skipped++;
                 continue;
             }
 
@@ -175,14 +176,27 @@ const fetchJobDetails = async (page) => {
             // });
 
             await listingCreate(postTitle, prosemirror_content, loc, date);
-            listingsAdded++;
+            added++;
         }
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
+        const response = await fetch("https://discord.com/api/webhooks/1229069783048130751/HEjx6hKofn0OHoIfnvTDHDWoBgXaD2uJFl2R3-p4swGOnk9WDUH38NWmsrRI_HG86Ghn", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                content: `Successfully posted ${added} listing${added === 1 ? "" : "s"} and skipped ${skipped} listing${skipped === 1 ? "" : "s"}`
+            }),
+        });
+        if (response.ok) {
+            log("Posted webhook successfully!");
+        }
+
         //log("=============== OPERATION COMPLETE ==============");
         log(
-            `Operation finished! Successfully posted \x1b[38;5;205m${listingsAdded}\x1b[0m listings.`
+            `Operation finished! Successfully posted \x1b[38;5;205m${added}\x1b[0m listings.`
         );
     }
 };
