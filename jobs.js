@@ -72,7 +72,15 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
 
     const randomIndex = Math.floor(Math.random() * users.length);
     const randomUser = users[randomIndex];
+    function generateFakeViews() {
+        return Math.floor(Math.random() * 281) + 20;
+    }
+    const views = generateFakeViews();
 
+    function generateFakeLikes() {
+        return Math.floor(Math.random() * 30) + 1;
+    }
+    const likes = generateFakeLikes();
     const Jobcategory = await Category.findById("65e63eb09c7c7b61b1db90ba");
     const listing = new Listing({
         title: postTitle,
@@ -80,8 +88,8 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
         category: Jobcategory,
         location: loc,
         user: randomUser._id,
-        likes: 0,
-        views: 0,
+        likes: likes,
+        views: views,
         createdAt: date,
     });
     await listing.save();

@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const port = 3005;
+const port = 3004;
 const mongoose = require("mongoose");
 const Listing = require("./listing");
 const Category = require("./category");
@@ -74,7 +74,14 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
 
     const randomIndex = Math.floor(Math.random() * users.length);
     const randomUser = users[randomIndex];
-
+    function generateFakeViews() {
+        return Math.floor(Math.random() * 281) + 20;
+    }
+    function generateFakeLikes() {
+        return Math.floor(Math.random() * 30) + 1;
+    }
+    const likes = generateFakeLikes();
+    const views = generateFakeViews();
     const Jobcategory = await Category.findById("65f2f40e16eb525c496848df"); // Real Estate //adjust
     const listing = new Listing({
         title: postTitle,
@@ -83,8 +90,8 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
         photos: photos,
         location: loc,
         user: randomUser._id,
-        likes: 0,
-        views: 0,
+        likes: likes,
+        views: views,
         createdAt: date,
     });
     await listing.save();
