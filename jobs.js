@@ -53,7 +53,7 @@ async function main() {
 
 let jobs = [];
 
-let { added = 0 , skipped = 0 } = {};
+let { added = 0, skipped = 0 } = {};
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ page, request }) {
@@ -79,11 +79,7 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
     const listing = new Listing({
         title: postTitle,
         content: JSON.stringify(prosemirror_content),
-        category: {
-            _id: Jobcategory._id,
-            title: Jobcategory.title,
-            specific: "apartments_for_rent" // adjust
-        },
+        category: Jobcategory,
         photos: photos,
         location: loc,
         user: randomUser._id,
@@ -93,6 +89,7 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
     });
     await listing.save();
     Jobcategory.listings.push(listing);
+    Jobcategory.specific = "apartments_for_rent";
     await Jobcategory.save();
     log(`Posted \x1b[38;5;155m${listing.title}\x1b[0m successfully!`);
 };
@@ -111,7 +108,6 @@ const fetchJobDetails = async (page) => {
         //log("Jobs length: ", jobs.length);
 
         for (let jobID of jobs) {
-
             const shouldPost = await checkAndInsertJobId(jobID);
 
             if (!shouldPost) {
@@ -131,13 +127,13 @@ const fetchJobDetails = async (page) => {
                 elem.getAttribute("epoch")
             );
             const region = await page.evaluate(() => {
-                const strongElements = document.querySelectorAll('li strong');
+                const strongElements = document.querySelectorAll("li strong");
                 for (let element of strongElements) {
-                    if (element.textContent.trim() === 'Region:') {
+                    if (element.textContent.trim() === "Region:") {
                         const regionElement = element.nextSibling;
-                        console.log(regionElement)
+                        console.log(regionElement);
                         // Split the text content at the newline and return the first part
-                        return regionElement.textContent.trim().split('\n')[0];
+                        return regionElement.textContent.trim().split("\n")[0];
                     }
                 }
                 return null; // If region is not found
@@ -194,7 +190,7 @@ const fetchJobDetails = async (page) => {
 
             const imageURLs = [];
             const imageDetails = []; // Array to store image details
-            
+
             // If images exist in listings
             if (images.length > 0) {
                 // If images are true, we must post to our backend directly rather than put it in mongodb.
@@ -209,17 +205,17 @@ const fetchJobDetails = async (page) => {
                         const imagePath = `${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
                         const response = await page.goto(imageUrl);
                         await fs.writeFile(imagePath, await response.body());
-            
+
                         // Image details object
                         const imageDetail = {
-                            fieldname: 'photos', // Assuming the fieldname is 'photos'
+                            fieldname: "photos", // Assuming the fieldname is 'photos'
                             originalname: path.basename(imagePath),
-                            encoding: '7bit', // You can adjust these values accordingly
-                            mimetype: 'image/jpeg',
+                            encoding: "7bit", // You can adjust these values accordingly
+                            mimetype: "image/jpeg",
                             buffer: await fs.readFile(imagePath), // Read the file into a buffer
-                            size: (await fs.stat(imagePath)).size // Get file size
+                            size: (await fs.stat(imagePath)).size, // Get file size
                         };
-            
+
                         // Store image URL and local file path
                         imageURLs.push(imageUrl);
                         imageDetails.push(imageDetail);
@@ -240,23 +236,26 @@ const fetchJobDetails = async (page) => {
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
-        const response = await fetch("https://discord.com/api/webhooks/1229069783048130751/HEjx6hKofn0OHoIfnvTDHDWoBgXaD2uJFl2R3-p4swGOnk9WDUH38NWmsrRI_HG86Ghn", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                content: `Successfully posted ${added} listing${added === 1 ? "" : "s"} and skipped ${skipped} listing${skipped === 1 ? "" : "s"}`
-            }),
-        });
+        const response = await fetch(
+            "https://discord.com/api/webhooks/1229069783048130751/HEjx6hKofn0OHoIfnvTDHDWoBgXaD2uJFl2R3-p4swGOnk9WDUH38NWmsrRI_HG86Ghn",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    content: `Successfully posted ${added} listing${
+                        added === 1 ? "" : "s"
+                    } and skipped ${skipped} listing${skipped === 1 ? "" : "s"}`,
+                }),
+            }
+        );
         if (response.ok) {
             log("Posted webhook successfully!");
         }
 
         //log("=============== OPERATION COMPLETE ==============");
-        log(
-            `Operation finished! Successfully posted \x1b[38;5;205m${added}\x1b[0m listings.`
-        );
+        log(`Operation finished! Successfully posted \x1b[38;5;205m${added}\x1b[0m listings.`);
     }
 };
 
