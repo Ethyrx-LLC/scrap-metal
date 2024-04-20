@@ -100,7 +100,7 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
 const checkAndInsertJobId = async (jobId) => {
     const existingId = await ProcessedId.findOne({ jobId });
     if (!existingId) {
-        //await new ProcessedId({ jobId }).save();
+        await new ProcessedId({ jobId }).save();
         return true;
     }
     return false;
