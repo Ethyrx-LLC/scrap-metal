@@ -6,6 +6,8 @@
     "cheerio": "^1.0.0-rc.12",
     "crawlee": "^3.8.2",
     "express": "^4.18.3",
+    "fs": "^0.0.1-security",
+    "image-type": "^5.2.0",
     "mongoose": "^8.2.1",
     "node": "^21.7.1",
     "node-fetch": "^3.3.2",

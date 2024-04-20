@@ -6,6 +6,8 @@ const Listing = require("./listing");
 const Category = require("./category");
 const User = require("./user");
 const { PlaywrightCrawler } = require("crawlee");
+const fs = require("fs").promises;
+const path = require("path");
 
 const processedIdSchema = new mongoose.Schema({
     jobId: {
@@ -62,7 +64,7 @@ const crawler = new PlaywrightCrawler({
     },
 });
 
-const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
+const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) => {
     const users = await User.find({
         createdAt: {
             $gte: new Date("2024-04-09T00:00:00Z"),
@@ -73,11 +75,16 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
     const randomIndex = Math.floor(Math.random() * users.length);
     const randomUser = users[randomIndex];
 
-    const Jobcategory = await Category.findById("65e63eb09c7c7b61b1db90ba");
+    const Jobcategory = await Category.findById("65f2f40e16eb525c496848df"); // Real Estate //adjust
     const listing = new Listing({
         title: postTitle,
         content: JSON.stringify(prosemirror_content),
-        category: Jobcategory,
+        category: {
+            _id: Jobcategory._id,
+            title: Jobcategory.title,
+            specific: "apartments_for_rent" // adjust
+        },
+        photos: photos,
         location: loc,
         user: randomUser._id,
         likes: 0,
@@ -93,7 +100,7 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date) => {
 const checkAndInsertJobId = async (jobId) => {
     const existingId = await ProcessedId.findOne({ jobId });
     if (!existingId) {
-        await new ProcessedId({ jobId }).save();
+        //await new ProcessedId({ jobId }).save();
         return true;
     }
     return false;
@@ -104,6 +111,7 @@ const fetchJobDetails = async (page) => {
         //log("Jobs length: ", jobs.length);
 
         for (let jobID of jobs) {
+
             const shouldPost = await checkAndInsertJobId(jobID);
 
             if (!shouldPost) {
@@ -122,6 +130,19 @@ const fetchJobDetails = async (page) => {
             const timestamp = await page.$eval("span#timestamp", (elem) =>
                 elem.getAttribute("epoch")
             );
+            const region = await page.evaluate(() => {
+                const strongElements = document.querySelectorAll('li strong');
+                for (let element of strongElements) {
+                    if (element.textContent.trim() === 'Region:') {
+                        const regionElement = element.nextSibling;
+                        console.log(regionElement)
+                        // Split the text content at the newline and return the first part
+                        return regionElement.textContent.trim().split('\n')[0];
+                    }
+                }
+                return null; // If region is not found
+            });
+            //console.log("Region:", region);
             const date = new Date(timestamp * 1000).toLocaleString();
 
             let postEmail, postPhone;
@@ -161,21 +182,59 @@ const fetchJobDetails = async (page) => {
             const loc = {
                 country: "BH",
                 country_full: "Bahrain",
-                region: "",
+                region: region ?? "",
                 region_full: null,
                 city: "",
                 timezone: "Asia/Bahrain",
             };
 
-            // console.dir({
-            //     title: postTitle,
-            //     date: date,
-            //     email: postEmail,
-            //     phone: postPhone,
-            //     text: JSON.stringify(prosemirror_content),
-            // });
+            const images = await page.$$eval(".posting-images img", (imgs) =>
+                imgs.map((img) => img.getAttribute("src"))
+            );
 
-            await listingCreate(postTitle, prosemirror_content, loc, date);
+            const imageURLs = [];
+            const imageDetails = []; // Array to store image details
+            
+            // If images exist in listings
+            if (images.length > 0) {
+                // If images are true, we must post to our backend directly rather than put it in mongodb.
+                postViaBackend = true;
+                for (let imageUrl of images) {
+                    try {
+                        if (imageUrl.startsWith("/img")) {
+                            // If the image URL starts with "/img", prepend the base URL
+                            imageUrl = `https://www.expatriates.com${imageUrl}`;
+                        }
+                        // Download image
+                        const imagePath = `${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
+                        const response = await page.goto(imageUrl);
+                        await fs.writeFile(imagePath, await response.body());
+            
+                        // Image details object
+                        const imageDetail = {
+                            fieldname: 'photos', // Assuming the fieldname is 'photos'
+                            originalname: path.basename(imagePath),
+                            encoding: '7bit', // You can adjust these values accordingly
+                            mimetype: 'image/jpeg',
+                            buffer: await fs.readFile(imagePath), // Read the file into a buffer
+                            size: (await fs.stat(imagePath)).size // Get file size
+                        };
+            
+                        // Store image URL and local file path
+                        imageURLs.push(imageUrl);
+                        imageDetails.push(imageDetail);
+                    } catch (error) {
+                        console.error(`Error downloading image ${imageUrl}:`, error);
+                    }
+                }
+            }
+
+            const photos = [];
+            photos.push(...imageDetails);
+
+            // console.log(photos);
+
+            await listingCreate(postTitle, prosemirror_content, loc, date, photos);
             added++;
         }
     } catch (e) {
@@ -205,4 +264,5 @@ app.listen(port, () => {
     console.log(`ACTIVATING EXPATRIATES MACHINE ON PORT ${port}`);
 });
 
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
+// crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/apartments-for-rent/"]);
