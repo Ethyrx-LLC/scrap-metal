@@ -74,8 +74,16 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
 
     const randomIndex = Math.floor(Math.random() * users.length);
     const randomUser = users[randomIndex];
+    function generateFakeViews() {
+        return Math.floor(Math.random() * 281) + 20;
+    }
+    const views = generateFakeViews();
 
-    const Jobcategory = await Category.findById("65f2f40e16eb525c496848df"); // Real Estate //adjust
+    function generateFakeLikes() {
+        return Math.floor(Math.random() * 30) + 1;
+    }
+    const likes = generateFakeLikes();
+    const Jobcategory = await Category.findById("65e987a78efb2a453ecc3d12"); // Real Estate //adjust
     const listing = new Listing({
         title: postTitle,
         content: JSON.stringify(prosemirror_content),
@@ -83,13 +91,13 @@ const listingCreate = async (postTitle, prosemirror_content, loc, date, photos) 
         photos: photos,
         location: loc,
         user: randomUser._id,
-        likes: 0,
-        views: 0,
+        likes: likes,
+        views: views,
         createdAt: date,
     });
     await listing.save();
     Jobcategory.listings.push(listing);
-    Jobcategory.specific = "apartments_for_rent";
+    Jobcategory.specific = "vehicles-cars-trucks";
     await Jobcategory.save();
     log(`Posted \x1b[38;5;155m${listing.title}\x1b[0m successfully!`);
 };
@@ -264,4 +272,4 @@ app.listen(port, () => {
 });
 
 // crawler.run(["https://www.expatriates.com/classifieds/bahrain/jobs"]);
-crawler.run(["https://www.expatriates.com/classifieds/bahrain/apartments-for-rent/"]);
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/vehicles-cars-trucks/"]);
