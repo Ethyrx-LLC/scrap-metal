@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const port = 3005;
+const port = 3004;
 const mongoose = require("mongoose");
 const Listing = require("./listing");
 const Category = require("./category");
@@ -14,7 +14,11 @@ const processedIdSchema = new mongoose.Schema({
         unique: true,
     },
 });
-const ProcessedId = mongoose.model("ProcessedId", processedIdSchema, "_processedIds");
+const ProcessedId = mongoose.model(
+    "ProcessedId",
+    processedIdSchema,
+    "_processedIds"
+);
 
 main().catch((err) => console.log(err));
 
@@ -45,7 +49,9 @@ async function logAllJobIds(page, premiumPosts) {
 }
 
 async function main() {
-    await mongoose.connect("mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/");
+    await mongoose.connect(
+        "mongodb://kitkat:U29fxgXemM3qDTP57srH6v@192.223.31.14:27017/"
+    );
     //fetchJobIds();
 }
 
@@ -143,7 +149,9 @@ const fetchJobDetails = async (page) => {
             }
 
             try {
-                postPhone = await page.$eval("a[href^='tel:']", (elem) => elem.textContent.trim());
+                postPhone = await page.$eval("a[href^='tel:']", (elem) =>
+                    elem.textContent.trim()
+                );
             } catch (error) {
                 //log(`No phone number present for ${postTitle}`);
                 postPhone = "";
@@ -156,7 +164,9 @@ const fetchJobDetails = async (page) => {
                 })
             );
 
-            const nonEmptyParagraphs = paragraphs.filter((paragraph) => paragraph.trim() !== "");
+            const nonEmptyParagraphs = paragraphs.filter(
+                (paragraph) => paragraph.trim() !== ""
+            );
 
             const prosemirror_content = {
                 type: "doc",
@@ -199,7 +209,9 @@ const fetchJobDetails = async (page) => {
                 body: JSON.stringify({
                     content: `Successfully posted ${added} listing${
                         added === 1 ? "" : "s"
-                    } and skipped ${skipped} listing${skipped === 1 ? "" : "s"}`,
+                    } and skipped ${skipped} listing${
+                        skipped === 1 ? "" : "s"
+                    }`,
                 }),
             }
         );
@@ -208,7 +220,9 @@ const fetchJobDetails = async (page) => {
         }
 
         //log("=============== OPERATION COMPLETE ==============");
-        log(`Operation finished! Successfully posted \x1b[38;5;205m${added}\x1b[0m listings.`);
+        log(
+            `Operation finished! Successfully posted \x1b[38;5;205m${added}\x1b[0m listings.`
+        );
     }
 };
 

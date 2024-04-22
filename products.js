@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const port = 3004;
+const port = 3001;
 const mongoose = require("mongoose");
 const Listing = require("./listing");
 const Category = require("./category");
@@ -147,10 +147,17 @@ const fetchJobDetails = async (page) => {
                 elem.getAttribute("epoch")
             );
 
-            const subCategory = await page.$eval(
-                ".post-info li:nth-child(2)",
-                (elem) => elem.textContent.trim().toLowerCase()
+            const subCategoryElement = await page.$(
+                ".post-info li:nth-child(3)"
             );
+
+            let subCategory = null;
+            if (subCategoryElement) {
+                subCategory = await page.evaluate(
+                    (elem) => elem.textContent.trim().toLowerCase(),
+                    subCategoryElement
+                );
+            }
 
             const region = await page.evaluate(() => {
                 const strongElements = document.querySelectorAll("li strong");
