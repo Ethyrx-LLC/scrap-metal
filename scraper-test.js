@@ -1,60 +1,58 @@
 const express = require("express");
 const app = express();
-const port = 3004;
+const port = 3002;
 const path = require("path");
 const { PlaywrightCrawler } = require("crawlee");
 const fs = require("fs").promises;
+const fss = require("fs");
+const axios = require("axios");
+const FormData = require("form-data");
 
-main().catch((err) => console.log(err));
-
-async function main() {
-    const crawler = new PlaywrightCrawler({
-        async requestHandler({ page }) {
-            await fetchJobDetails(page);
-        },
+async function logAllJobIds(page) {
+    const ids = await page.$$eval("li[onclick]", (elems) => {
+        const jobIds = elems.map((elem) => {
+            const onclickValue = elem.getAttribute("onclick");
+            const match = onclickValue.match(/\/cls\/(\d+)\.html/);
+            return match ? match[1] : null;
+        });
+        console.log("Job IDs found:", jobIds);
+        return jobIds;
     });
 
-    crawler.run(["https://www.expatriates.com/classifieds/bahrain/services/"]);
+    return ids;
 }
 
-const fetchJobDetails = async (page) => {
-    try {
-        const jobs = ["55871956"]; // Sample job IDs for testing
+let jobs = [];
 
-        for (let jobID of jobs) {
-            await page.goto(`https://www.expatriates.com/cls/${jobID}.html`);
+const crawler = new PlaywrightCrawler({
+    async requestHandler({ page, request }) {
+        const jobIds = await logAllJobIds(page);
+        jobs.push(...jobIds);
+        console.log(jobIds);
+        await fetchJobDetails(page, jobIds);
+    },
+});
+
+const fetchJobDetails = async (page, jobIds) => {
+    try {
+        for (let i = 0; i < jobIds.length; i++) {
+            const jobId = jobIds[i];
+            console.log("Processing job ID:", jobId);
+            await page.goto(`https://www.expatriates.com/cls/${jobId}.html`);
+            console.log("Page loaded successfully for job ID:", jobId);
+
             const postTitle = await page.$eval(".page-title > h1", (elem) =>
                 elem.textContent.trim()
             );
+            console.log("Post title:", postTitle);
 
             const timestamp = await page.$eval("span#timestamp", (elem) =>
                 elem.getAttribute("epoch")
             );
-
-            const subCategoryElement = await page.$(
-                ".post-info li:nth-child(3)"
-            );
-
-            let subCategory = null;
-            if (subCategoryElement) {
-                subCategory = await page.evaluate(
-                    (elem) => elem.textContent.trim().toLowerCase(),
-                    subCategoryElement
-                );
-            }
-
-            const region = await page.evaluate(() => {
-                const strongElements = document.querySelectorAll("li strong");
-                for (let element of strongElements) {
-                    if (element.textContent.trim() === "Region:") {
-                        const regionElement = element.nextSibling;
-                        return regionElement.textContent.trim().split("\n")[0];
-                    }
-                }
-                return null; // If region is not found
-            });
+            console.log("Timestamp:", timestamp);
 
             const date = new Date(timestamp * 1000).toLocaleString();
+            console.log("Date:", date);
 
             const paragraphs = await page.$$eval(".post-body", (elems) =>
                 elems.flatMap((elem) => {
@@ -62,6 +60,7 @@ const fetchJobDetails = async (page) => {
                     return contents.filter((content) => content.trim() !== "");
                 })
             );
+            console.log("Paragraphs:", paragraphs);
 
             const nonEmptyParagraphs = paragraphs.filter(
                 (paragraph) => paragraph.trim() !== ""
@@ -74,15 +73,17 @@ const fetchJobDetails = async (page) => {
                     content: [{ type: "text", text: paragraph }],
                 })),
             };
+            console.log("Prosemirror content:", prosemirror_content);
 
             const loc = {
                 country: "BH",
                 country_full: "Bahrain",
-                region: region ?? "",
+                region: "",
                 region_full: null,
                 city: "",
                 timezone: "Asia/Bahrain",
             };
+            console.log("Location:", loc);
 
             // Extract image URLs
             const imageUrls = await page.$$eval(".posting-images img", (imgs) =>
@@ -97,53 +98,76 @@ const fetchJobDetails = async (page) => {
                         : imageUrl;
                 })
             );
+            console.log("Image URLs:", imageUrls);
 
-            // Download images and prepare image details
-            const images = await Promise.all(
-                imageUrls.map(async (imageUrl) => {
-                    try {
-                        // Fetch the image data
-                        const response = await page.fetch(imageUrl);
-                        // Convert the response to a buffer
-                        const buffer = await response.body();
-                        // Prepare image details object
-                        return {
-                            fieldname: "photos",
-                            originalname: path.basename(imageUrl),
-                            encoding: "7bit",
-                            mimetype: "image/jpeg",
-                            buffer: Buffer.from(await buffer.arrayBuffer()),
-                            size: buffer.length,
-                        };
-                    } catch (error) {
-                        console.error(
-                            `Error downloading image ${imageUrl}:`,
-                            error
-                        );
-                        return null;
-                    }
-                })
+            // Download and save images
+            const savedImages = [];
+            for (let i = 0; i < imageUrls.length; i++) {
+                const imageUrl = imageUrls[i];
+                console.log("Downloading image:", imageUrl);
+                try {
+                    const response = await axios.get(imageUrl, {
+                        responseType: "arraybuffer",
+                    });
+                    console.log("Image downloaded successfully:", imageUrl);
+                    const imageFileName = `${jobId}_${i}.jpg`;
+                    const imagePath = path.join(
+                        __dirname,
+                        "images",
+                        imageFileName
+                    );
+                    await fs.writeFile(imagePath, response.data);
+                    savedImages.push(imagePath);
+                    console.log("Image saved:", imagePath);
+                } catch (error) {
+                    console.error(
+                        `Error downloading image ${imageUrl}:`,
+                        error
+                    );
+                }
+            }
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append("title", postTitle);
+            formData.append("content", JSON.stringify(prosemirror_content));
+            formData.append("location", JSON.stringify(loc));
+            formData.append("date", date);
+            savedImages.forEach((imagePath) => {
+                formData.append("photos", fss.createReadStream(imagePath), {
+                    filename: path.basename(imagePath),
+                });
+            });
+            console.log("Form data prepared:", formData);
+
+            // Send POST request to localhost:3000/scraper
+            console.log("Sending POST request for job ID:", jobId);
+            const response = await axios.post(
+                "http://localhost:3000/scraper",
+                formData,
+                {
+                    headers: {
+                        ...formData.getHeaders(),
+                    },
+                    timeout: 60000, // Set a timeout of 30 seconds
+                }
+            );
+            console.log(
+                "POST request sent for job ID:",
+                jobId,
+                ". Response:",
+                response.data
             );
 
-            // Remove null values from images array
-            const validImages = images.filter((img) => img !== null);
-
-            // Example data to be posted
-            const postData = {
-                title: postTitle,
-                content: JSON.stringify(prosemirror_content),
-                location: loc,
-                date: date,
-                images: validImages, // Include images in the data
-            };
-
-            // Logging the post data for now
-            console.log(postData);
+            // Clean up: Delete downloaded images
+            for (const imagePath of savedImages) {
+                await fs.unlink(imagePath);
+                console.log(`Deleted image: ${imagePath}`);
+            }
         }
     } catch (e) {
         console.error("Error in fetchJobDetails:", e);
     } finally {
-        // Logging and other final tasks
         console.log("Operation finished!");
     }
 };
@@ -151,3 +175,5 @@ const fetchJobDetails = async (page) => {
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+
+crawler.run(["https://www.expatriates.com/classifieds/bahrain/services/"]);
