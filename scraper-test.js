@@ -133,31 +133,27 @@ const fetchJobDetails = async (page, jobIds) => {
             formData.append("content", JSON.stringify(prosemirror_content));
             formData.append("location", JSON.stringify(loc));
             formData.append("date", date);
-            savedImages.forEach((imagePath) => {
-                formData.append("photos", fss.createReadStream(imagePath), {
+
+            // Append images to form data
+            savedImages.forEach((imagePath, index) => {
+                const stream = fss.createReadStream(imagePath);
+                if (!stream) {
+                    throw new Error(`Failed to read image file: ${imagePath}`);
+                }
+                formData.append("photos", stream, {
                     filename: path.basename(imagePath),
+                    knownLength: fss.statSync(imagePath).size // Ensure the size is known for proper form data encoding
                 });
             });
-            console.log("Form data prepared:", formData);
 
             // Send POST request to localhost:3000/scraper
             console.log("Sending POST request for job ID:", jobId);
-            const response = await axios.post(
-                "http://localhost:3000/scraper",
-                formData,
-                {
-                    headers: {
-                        ...formData.getHeaders(),
-                    },
-                    timeout: 60000, // Set a timeout of 30 seconds
-                }
-            );
-            console.log(
-                "POST request sent for job ID:",
-                jobId,
-                ". Response:",
-                response.data
-            );
+            const response = await axios.post('http://localhost:3000/scraper', formData, {
+                headers: formData.getHeaders(),
+                timeout: 60000 // Set a timeout of 60 seconds
+            });
+            const resData = await response.data;
+            console.log("Response data:", resData);
 
             // Clean up: Delete downloaded images
             for (const imagePath of savedImages) {
