@@ -148,11 +148,16 @@ const fetchJobDetails = async (page, jobIds) => {
 
             // Send POST request to localhost:3000/scraper
             console.log("Sending POST request for job ID:", jobId);
-            const response = await axios.post('http://localhost:3000/scraper', formData, {
+            // const response = await axios.post('http://localhost:3000/scraper', formData, {
+            //     headers: formData.getHeaders(),
+            //     timeout: 60000 // Set a timeout of 60 seconds
+            // });
+            const response = await fetch("http://localhost:3000/scraper", {
+                method: "POST",
                 headers: formData.getHeaders(),
-                timeout: 60000 // Set a timeout of 60 seconds
+                body: FormData
             });
-            const resData = await response.data;
+            const resData = await response.json();
             console.log("Response data:", resData);
 
             // Clean up: Delete downloaded images
