@@ -26,6 +26,7 @@ let jobs = [];
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ page, request }) {
+        jobs = [];
         const jobIds = await logAllJobIds(page);
         jobs.push(...jobIds);
         console.log(jobIds);
@@ -83,7 +84,7 @@ const fetchJobDetails = async (page, jobIds) => {
                 city: "",
                 timezone: "Asia/Bahrain",
             };
-            console.log("Location:", loc);
+            console.log("Location:", loc.country_full);
 
             // Extract image URLs
             const imageUrls = await page.$$eval(".posting-images img", (imgs) =>
@@ -138,7 +139,6 @@ const fetchJobDetails = async (page, jobIds) => {
                     filename: path.basename(imagePath),
                 });
             });
-            console.log("Form data prepared:", formData);
 
             // Send POST request to localhost:3000/scraper
             console.log("Sending POST request for job ID:", jobId);
